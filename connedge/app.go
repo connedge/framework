@@ -1,12 +1,9 @@
 package connedge
 
 import (
-	"context"
 	"fmt"
 	"github.com/connedge/framework/config"
 	"github.com/connedge/framework/database"
-	"github.com/connedge/framework/http"
-	"github.com/connedge/framework/http/server"
 	"github.com/connedge/framework/ioc"
 	"github.com/gookit/color"
 	"log"
@@ -18,7 +15,6 @@ import (
 type App struct {
 	Config         config.Config
 	Container      *ioc.Container
-	Engine         http.Engine
 	AsyncProviders []Provider
 	AppProviders   []Provider
 	Database       database.Database
@@ -52,11 +48,6 @@ type Config struct {
 	// Configuration files will be loaded from this path unless explicitly set to a different path.
 	ConfigFilePath string
 
-	// HttpEngineType specifies the HTTP engine that connedge uses for
-	// server and routing.
-	// connedge uses the gin framework by default for its HTTP engine.
-	HttpEngineType http.HttpEngineType
-
 	// AsyncRegistries allows building a modular application structure.
 	// AsyncRegistries are used with the container (inversion of control) library
 	// This enables building the app out of modular, reusable components.
@@ -80,9 +71,6 @@ func New(c Config) *App {
 
 			config.WithFilePath(c.ConfigFilePath, defaultConfigFilePath),
 		),
-		Engine: server.New(server.Config{
-			HttpEngine: c.HttpEngineType,
-		}),
 		AsyncProviders: c.AsyncProviders,
 		AppProviders:   c.AppProviders,
 		Container:      container,
@@ -99,7 +87,6 @@ func (a *App) Start() {
 	fmt.Println("")
 	color.Cyanf("=============== SERVER ===================\n")
 	a.gracefullyShutDown()
-	_ = a.Engine.Run(fmt.Sprintf(":%s", a.getServerPort()))
 
 }
 
@@ -147,10 +134,6 @@ func (a *App) gracefullyShutDown() {
 
 		if err := a.OnShutdown(a.Container); err != nil {
 			log.Fatalf("app.OnShutdown error: %v", err)
-		}
-
-		if err := a.Engine.Shutdown(context.Background()); err != nil {
-			log.Fatalf("app.server.shutdown error: %v", err)
 		}
 	}()
 }
